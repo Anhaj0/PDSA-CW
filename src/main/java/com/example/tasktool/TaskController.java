@@ -3,8 +3,13 @@ package com.example.tasktool;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
+// Marks this class as a REST Controller (handles HTTP requests)
 @RestController
+    
+// Base URL mapping for all endpoints in this controller
 @RequestMapping("/api/tasks")
+
+// Allows cross-origin requests (for frontend like React/Angular)
 @CrossOrigin
 public class TaskController {
 
