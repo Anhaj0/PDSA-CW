@@ -13,9 +13,13 @@ import java.util.*;
 @CrossOrigin
 public class TaskController {
 
+    // MinHeap to store pending tasks based on priority/deadline
     private final TaskMinHeap minHeap = new TaskMinHeap();
+
+    // List to store completed tasks separately
     private final List<Task> completedTasks = new ArrayList<>();
 
+     // GET endpoint to retrieve both pending and completed tasks
     @GetMapping
     public Map<String, List<Task>> getTasks() {
         Map<String, List<Task>> response = new HashMap<>();
