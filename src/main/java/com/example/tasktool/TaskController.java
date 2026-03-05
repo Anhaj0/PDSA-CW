@@ -1,72 +1,121 @@
 package com.example.tasktool;
 
 import org.springframework.web.bind.annotation.*;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-// Marks this class as a REST Controller (handles HTTP requests)
 @RestController
-    
-// Base URL mapping for all endpoints in this controller
 @RequestMapping("/api/tasks")
-
-// Allows cross-origin requests (for frontend like React/Angular)
-@CrossOrigin
 public class TaskController {
 
-    // MinHeap to store pending tasks based on priority/deadline
-    private final TaskMinHeap minHeap = new TaskMinHeap();
+    private final TaskMinHeap pendingHeap = new TaskMinHeap();
+    private final List<TaskDTO> completedTasks = new ArrayList<>();
+    
+    // Assuming tasks are uniquely identifiable by an incrementing ID
+    private int idCounter = 1;
 
-    // List to store completed tasks separately
-    private final List<Task> completedTasks = new ArrayList<>();
+    // Inner class to match frontend JSON structure
+    static class TaskDTO {
+        public String id;
+        public String title;
+        public String description;
+        public String deadline; // ISO string
+        public double estimatedDurationHours;
+        public double stressScore;
 
-     // GET endpoint to retrieve both pending and completed tasks
+        public TaskDTO() {}
+
+        public TaskDTO(String id, String title, String description, String deadline, double estimatedDurationHours, double stressScore) {
+            this.id = id;
+            this.title = title;
+            this.description = description;
+            this.deadline = deadline;
+            this.estimatedDurationHours = estimatedDurationHours;
+            this.stressScore = stressScore;
+        }
+    }
+    
+    // To preserve the string deadline and description (since Task doesn't have them)
+    private final Map<String, TaskDTO> taskDataStore = new HashMap<>();
+
     @GetMapping
-    public Map<String, List<Task>> getTasks() {
+    public Map<String, Object> getTasks() {
+        // Build pending list from the min heap without destroying it
+        List<Task> pendingCore = new ArrayList<>();
+        TaskMinHeap tempHeap = new TaskMinHeap();
+        
+        // Peek/extract all to sort, then put back
+        while (!pendingHeap.isEmpty()) {
+            pendingCore.add(pendingHeap.extractMin());
+        }
+        
+        List<TaskDTO> pendingDTOs = new ArrayList<>();
+        // Restore heap and build DTOs
+        for (Task t : pendingCore) {
+            pendingHeap.insert(t); // put it back
+            TaskDTO dto = taskDataStore.get(t.getId());
+            // dynamically update time remaining and stress score
+            double currentTR = calculateTimeRemaining(dto.deadline);
+            t.setTimeRemaining(currentTR);
+            dto.stressScore = t.getPressureScore();
+            pendingDTOs.add(dto);
+        }
 
-        // Create response map
-        Map<String, List<Task>> response = new HashMap<>();
-
-        // Get sorted pending tasks from MinHeap
-        response.put("pending", minHeap.getSortedTasks());
-
-        // Get completed tasks
+        Map<String, Object> response = new HashMap<>();
+        response.put("pending", pendingDTOs);
         response.put("completed", completedTasks);
         return response;
     }
 
-    // POST endpoint to add a new task
     @PostMapping
-    public Task addTask(@RequestBody Task task) {
-
-        // Set default status as PENDING
-        task.setStatus("PENDING");
+    public TaskDTO addTask(@RequestBody TaskDTO dto) {
+        dto.id = String.valueOf(idCounter++);
         
-        // Insert task into MinHeap
-        minHeap.insert(task);
-        return task;
+        double timeRemaining = calculateTimeRemaining(dto.deadline);
+        
+        Task task = new Task(dto.id, dto.title, dto.estimatedDurationHours, timeRemaining);
+        dto.stressScore = task.getPressureScore();
+        
+        taskDataStore.put(dto.id, dto);
+        pendingHeap.insert(task);
+        
+        return dto;
     }
 
-    // PUT endpoint to mark a task as completed
     @PutMapping("/{id}/complete")
-    public Task completeTask(@PathVariable String id) {
-
-        // Remove task from MinHeap using task ID
-        Task task = minHeap.remove(id);
-
-        // If task exists, update status and move to completed list
-        if (task != null) {
-            task.setStatus("COMPLETED");
-            completedTasks.add(task);
-            return task;
+    public void completeTask(@PathVariable String id) {
+        Task removed = pendingHeap.remove(id);
+        if (removed != null) {
+            TaskDTO dto = taskDataStore.remove(id);
+            if (dto != null) {
+                completedTasks.add(dto);
+            }
         }
-
-        // Throw error if task not found
-        throw new RuntimeException("Task not found with id " + id);
     }
 
-    // Feature 4: Novelty 2 - Auto-Reschedule Endpoint
     @PutMapping("/{id}/reschedule")
     public void rescheduleTask(@PathVariable String id, @RequestParam String newDeadline) {
-        minHeap.updateDeadline(id, java.time.LocalDateTime.parse(newDeadline));
+        TaskDTO dto = taskDataStore.get(id);
+        if (dto != null) {
+            dto.deadline = newDeadline;
+            double timeRemaining = calculateTimeRemaining(newDeadline);
+            pendingHeap.update(id, dto.estimatedDurationHours, timeRemaining);
+            
+            // Recalculate stress score based on updated task
+            Task updatedTask = new Task(id, dto.title, dto.estimatedDurationHours, timeRemaining);
+            dto.stressScore = updatedTask.getPressureScore();
+        }
+    }
+    
+    private double calculateTimeRemaining(String deadlineStr) {
+        try {
+            LocalDateTime deadline = LocalDateTime.parse(deadlineStr);
+            LocalDateTime now = LocalDateTime.now();
+            long minutes = ChronoUnit.MINUTES.between(now, deadline);
+            return minutes / 60.0;
+        } catch (Exception e) {
+            return 1.0;
+        }
     }
 }
