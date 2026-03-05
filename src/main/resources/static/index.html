@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Deadline Priority Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #f0f4ff 0%, #e5eaf5 100%);
+            color: #1e293b;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border-radius: 1rem;
+        }
+
+        .premium-shadow {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .task-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-4 md:p-8">
+    <div class="max-w-7xl mx-auto space-y-8">
+
+        <!-- Header -->
+        <header class="text-center space-y-2 py-6">
+            <h1 class="text-4xl md:text-5xl font-bold gradient-text pb-2">Task Deadline Priority Tool</h1>
+            <p class="text-gray-500 font-medium tracking-wide border-b pb-6 max-w-2xl mx-auto">MIN-HEAP $O(\log n)$
+                SCHEDULING ALGORITHM</p>
+        </header>
+
+        <!-- Dashboard Top Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Input Form -->
+            <div class="lg:col-span-2 glass-card p-6 md:p-8">
+                <div class="flex items-center space-x-3 mb-6">
+                    <div class="p-2 bg-blue-100 rounded-lg text-blue-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
+                            </path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">Create New Task</h2>
+                </div>
+
+                <form id="taskForm" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="space-y-1 md:col-span-2">
+                        <label class="text-xs font-semibold text-gray-500 uppercase">Task Title</label>
+                        <input type="text" id="title" placeholder="e.g. Deploy Production Server" required
+                            class="w-full bg-white border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm">
+                    </div>
+
+                    <div class="space-y-1 md:col-span-2">
+                        <label class="text-xs font-semibold text-gray-500 uppercase">Description (Optional)</label>
+                        <input type="text" id="description" placeholder="Brief details about the task..."
+                            class="w-full bg-white border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm">
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-gray-500 uppercase">Strict Deadline</label>
+                        <input type="datetime-local" id="deadline" required
+                            class="w-full bg-white border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm">
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-gray-500 uppercase">Est. Duration (Hours)</label>
+                        <input type="number" id="duration" placeholder="1.0" step="0.5" value="1.0"
+                            class="w-full bg-white border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm">
+                    </div>
+
+                    <div class="md:col-span-2 pt-2">
+                        <button type="submit"
+                            class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex justify-center items-center space-x-2">
+                            <span>Add to Priority Queue</span>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Stats & Chart -->
+            <div class="glass-card p-6 md:p-8 flex flex-col items-center justify-center relative overflow-hidden">
+                <div
+                    class="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full blur-3xl opacity-60 -mr-10 -mt-10">
+                </div>
+                <div
+                    class="absolute bottom-0 left-0 w-32 h-32 bg-purple-100 rounded-full blur-3xl opacity-60 -ml-10 -mb-10">
+                </div>
+
+                <h2 class="text-xl font-bold text-gray-800 mb-6 w-full text-center relative z-10">Task Analytics</h2>
+
+                <div class="w-full max-w-[200px] mb-6 relative z-10">
+                    <canvas id="taskChart"></canvas>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 w-full relative z-10">
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                        <p class="text-3xl font-bold text-blue-600" id="statPending">0</p>
+                        <p class="text-xs font-semibold text-blue-800 uppercase mt-1">Pending</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-xl border border-green-100 text-center">
+                        <p class="text-3xl font-bold text-green-600" id="statCompleted">0</p>
+                        <p class="text-xs font-semibold text-green-800 uppercase mt-1">Completed</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Kanban Board -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+
+            <!-- Pending Tasks -->
+            <div class="glass-card p-6 bg-blue-50/30">
+                <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                        <h2 class="text-xl font-bold text-gray-800">Priority Queue</h2>
+                    </div>
+                    <span id="pendingBadge"
+                        class="bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-full shadow-inner text-sm">0
+                        Tasks</span>
+                </div>
+                <div id="pendingList" class="space-y-4 min-h-[200px]">
+                    <!-- Tasks injected here -->
+                </div>
+            </div>
+
+            <!-- Completed Tasks -->
+            <div class="glass-card p-6 bg-green-50/30">
+                <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <h2 class="text-xl font-bold text-gray-800">Completed</h2>
+                    </div>
+                    <span id="completedBadge"
+                        class="bg-green-100 text-green-700 font-bold px-3 py-1 rounded-full shadow-inner text-sm">0
+                        Tasks</span>
+                </div>
+                <div id="completedList" class="space-y-4 min-h-[200px]">
+                    <!-- Tasks injected here -->
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Reschedule Modal -->
+    <div id="rescheduleModal"
+        class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm overflow-y-auto h-full w-full hidden flex justify-center items-center z-50 transition-opacity">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all scale-100">
+            <div class="flex items-center space-x-3 mb-6 border-b pb-4">
+                <div class="p-2 bg-yellow-100 rounded-lg text-yellow-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800">Reschedule Task</h3>
+            </div>
+
+            <input type="hidden" id="rescheduleTaskId">
+
+            <div class="space-y-2 mb-8">
+                <label class="block text-sm font-semibold text-gray-600 uppercase">Select New Deadline</label>
+                <input type="datetime-local" id="newDeadlineInput"
+                    class="border border-gray-300 p-3 rounded-xl w-full focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition shadow-sm bg-gray-50">
+            </div>
+
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeRescheduleModal()"
+                    class="px-5 py-2.5 rounded-lg font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition">Cancel</button>
+                <button onclick="submitReschedule()"
+                    class="px-5 py-2.5 rounded-lg font-bold text-white bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">Save
+                    Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/tasks';
+        let taskChartInstance = null;
+
+        // Initialize Chart.js
+        function initChart() {
+            const ctx = document.getElementById('taskChart').getContext('2d');
+            taskChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pending', 'Completed'],
+                    datasets: [{
+                        data: [0, 0],
+                        backgroundColor: ['#3b82f6', '#22c55e'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return ' ' + context.label + ': ' + context.raw;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart(pendingCount, completedCount) {
+            if (taskChartInstance) {
+                taskChartInstance.data.datasets[0].data = [pendingCount, completedCount];
+                taskChartInstance.update();
+            }
+        }
+
+        async function fetchTasks() {
+            try {
+                const res = await fetch(API_URL);
+                if (!res.ok) throw new Error('Network response was not ok');
+                const data = await res.json();
+                renderTasks(data.pending, data.completed);
+                updateChart(data.pending.length, data.completed.length);
+            } catch (err) {
+                console.error('Error fetching tasks:', err);
+                // Fallback for visual testing if API is down
+                if (window.location.protocol === 'file:') {
+                    updateChart(3, 1);
+                }
+            }
+        }
+
+        function renderTasks(pending, completed) {
+            const pendingList = document.getElementById('pendingList');
+            const completedList = document.getElementById('completedList');
+
+            document.getElementById('pendingBadge').innerText = pending.length + ' Tasks';
+            document.getElementById('completedBadge').innerText = completed.length + ' Tasks';
+
+            document.getElementById('statPending').innerText = pending.length;
+            document.getElementById('statCompleted').innerText = completed.length;
+
+            pendingList.innerHTML = '';
+            completedList.innerHTML = '';
+
+            if (pending.length === 0) {
+                pendingList.innerHTML = '<div class="text-center py-8 text-gray-400 font-medium">No pending tasks!</div>';
+            }
+
+            if (completed.length === 0) {
+                completedList.innerHTML = '<div class="text-center py-8 text-gray-400 font-medium">No tasks completed yet.</div>';
+            }
+
+            pending.forEach((task, index) => {
+                const dateObj = new Date(task.deadline);
+                const dateStr = dateObj.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const isOverdue = dateObj < new Date();
+
+                // Stress Score Logic
+                const stressScore = task.stressScore ? task.stressScore.toFixed(2) : '1.00';
+                const isHighStress = task.stressScore > 1.0;
+
+                const isMostUrgent = index === 0;
+
+                let cardStyle = 'bg-white border-l-4 border-blue-400 task-hover transition-all duration-300 premium-shadow rounded-xl p-5 relative overflow-hidden group';
+                let titleStyle = 'text-gray-800';
+
+                if (isMostUrgent) {
+                    cardStyle = 'bg-white border-l-4 border-red-500 ring-2 ring-red-100 task-hover transition-all duration-300 premium-shadow rounded-xl p-5 relative overflow-hidden transform scale-[1.02] z-10 my-4';
+                } else if (isOverdue) {
+                    cardStyle = 'bg-red-50/50 border-l-4 border-red-400 task-hover transition-all duration-300 premium-shadow rounded-xl p-5 relative overflow-hidden';
+                    titleStyle = 'text-red-900';
+                } else if (isHighStress) {
+                    cardStyle = 'bg-orange-50/50 border-l-4 border-orange-400 task-hover transition-all duration-300 premium-shadow rounded-xl p-5 relative overflow-hidden';
+                }
+
+                const card = `
+                    <div class="${cardStyle}">
+                        ${isMostUrgent ? '<div class="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg shadow uppercase tracking-wider">Top Priority</div>' : ''}
+                        
+                        <div class="flex justify-between items-start mb-3 pr-20">
+                            <h3 class="font-bold text-lg ${titleStyle}">${task.title}</h3>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold ${isOverdue ? 'bg-red-100 text-red-800' : 'bg-blue-50 text-blue-700'}">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                ${dateStr} ${isOverdue ? '(OVERDUE)' : ''}
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold ${isHighStress ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-700'}">
+                                Stress: ${stressScore}
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700">
+                                ${task.estimatedDurationHours}h
+                            </span>
+                        </div>
+                        
+                        ${task.description ? `<p class="text-gray-600 text-sm mb-4 line-clamp-2">${task.description}</p>` : ''}
+                        
+                        <div class="flex space-x-3 mt-4">
+                            <button onclick="completeTask('${task.id}')" class="flex-1 bg-green-50 text-green-700 hover:bg-green-500 hover:text-white border border-green-200 hover:border-green-500 font-semibold text-sm px-4 py-2 rounded-lg transition-colors flex justify-center items-center">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                Complete
+                            </button>
+                            ${isOverdue || isHighStress ? `
+                            <button onclick="openRescheduleModal('${task.id}')" class="flex-1 bg-yellow-50 text-yellow-700 hover:bg-yellow-500 hover:text-white border border-yellow-200 hover:border-yellow-500 font-semibold text-sm px-4 py-2 rounded-lg transition-colors flex justify-center items-center">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                Fix Deadline
+                            </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                pendingList.innerHTML += card;
+            });
+
+            completed.forEach(task => {
+                const dateObj = new Date(task.deadline);
+                const dateStr = dateObj.toLocaleString([], { month: 'short', day: 'numeric' });
+
+                const card = `
+                    <div class="bg-white/60 border border-gray-100 rounded-xl p-4 flex items-center justify-between opacity-80 hover:opacity-100 transition-opacity">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-gray-500 line-through">${task.title}</h3>
+                                <p class="text-xs text-gray-400">Due: ${dateStr}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                completedList.innerHTML += card;
+            });
+        }
+
+        async function addTask(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const deadline = document.getElementById('deadline').value;
+            const duration = document.getElementById('duration').value;
+
+            if (!deadline) {
+                alert("Please select a deadline");
+                btn.innerHTML = originalText;
+                return;
+            }
+
+            const task = {
+                title,
+                description,
+                deadline,
+                estimatedDurationHours: parseFloat(duration) || 1.0
+            };
+
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(task)
+                });
+                document.getElementById('taskForm').reset();
+                document.getElementById('duration').value = "1.0";
+                await fetchTasks();
+            } catch (err) {
+                console.error('Error adding task:', err);
+            } finally {
+                btn.innerHTML = originalText;
+            }
+        }
+
+        async function completeTask(id) {
+            try {
+                await fetch(`${API_URL}/${id}/complete`, { method: 'PUT' });
+                fetchTasks();
+            } catch (err) {
+                console.error('Error completing task:', err);
+            }
+        }
+
+        function openRescheduleModal(id) {
+            document.getElementById('rescheduleTaskId').value = id;
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('newDeadlineInput').value = now.toISOString().slice(0, 16);
+            document.getElementById('rescheduleModal').classList.remove('hidden');
+        }
+
+        function closeRescheduleModal() {
+            document.getElementById('rescheduleModal').classList.add('hidden');
+        }
+
+        async function submitReschedule() {
+            const id = document.getElementById('rescheduleTaskId').value;
+            const newDate = document.getElementById('newDeadlineInput').value;
+
+            if (newDate) {
+                try {
+                    await fetch(`${API_URL}/${id}/reschedule?newDeadline=${newDate}`, { method: 'PUT' });
+                    closeRescheduleModal();
+                    fetchTasks();
+                } catch (err) {
+                    console.error('Error rescheduling task:', err);
+                    alert("Failed to reschedule");
+                }
+            } else {
+                alert("Please select a new date");
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            document.getElementById('taskForm').addEventListener('submit', addTask);
+            fetchTasks();
+        });
+    </script>
+</body>
+
+</html>
